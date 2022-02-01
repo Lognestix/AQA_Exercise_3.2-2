@@ -2,26 +2,21 @@ package ru.netology;
 
 import com.github.javafaker.CreditCardType;
 import com.github.javafaker.Faker;
-import lombok.SneakyThrows;
-import org.apache.commons.dbutils.QueryRunner;
-import org.apache.commons.dbutils.handlers.BeanHandler;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import ru.netology.data.CardTransaction;
-
-import java.sql.DriverManager;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static ru.netology.data.DataHelper.Auth.authUser;
 import static ru.netology.data.DataHelper.Cards.*;
 import static ru.netology.data.DataHelper.Verification.userVerification;
+import static ru.netology.data.DataHelper.cleaningAndAlignment;
 
 class TransferMoneyAPITest {
 
     @Test
     @DisplayName("Transfer between own cards positive scenario")
-    void shouldTransferBetweenOwnCards() {
+    public void shouldTransferBetweenOwnCards() {
         authUser();
         //Получение токена авторизации:
         var token = userVerification();
@@ -45,7 +40,7 @@ class TransferMoneyAPITest {
 
     @Test
     @DisplayName("Transfer to another card positive scenario")
-    void shouldTransferToAnotherCard() {
+    public void shouldTransferToAnotherCard() {
         Faker faker = new Faker();
         authUser();
         //Получение токена авторизации:
@@ -67,7 +62,7 @@ class TransferMoneyAPITest {
 
     @Test
     @DisplayName("Transfer from another card positive scenario")
-    void shouldTransferFromAnotherCard() {
+    public void shouldTransferFromAnotherCard() {
         Faker faker = new Faker();
         authUser();
         //Получение токена авторизации:
@@ -90,7 +85,7 @@ class TransferMoneyAPITest {
     @Test
     @DisplayName("Transfer between own cards is a negative scenario, " +
             "the write-off exceeds the card balance")
-    void shouldTransferBetweenOwnCardsNegative() {
+    public void shouldTransferBetweenOwnCardsNegative() {
         authUser();
         //Получение токена авторизации:
         var token = userVerification();
@@ -115,7 +110,7 @@ class TransferMoneyAPITest {
     @Test
     @DisplayName("Transfer to another card negative scenario, " +
             "transfer of a negative amount")
-    void shouldTransferToAnotherCardNegative() {
+    public void shouldTransferToAnotherCardNegative() {
         Faker faker = new Faker();
         authUser();
         //Получение токена авторизации:
@@ -136,25 +131,7 @@ class TransferMoneyAPITest {
     }
 
     @AfterEach
-    @SneakyThrows
-    public void cleaningAndAlignment() {
-        var runner = new QueryRunner();
-        var codeDelSQL = "DELETE FROM auth_codes;";
-        var transactSQL = "SELECT * FROM card_transactions;";
-        var transactDelSQL = "DELETE FROM card_transactions;";
-
-        try (var connection = DriverManager.getConnection(
-                "jdbc:mysql://185.119.57.164:3306/base",
-                "adm", "9mRE")) {
-            runner.update(connection, codeDelSQL);
-            authUser();
-            var token = userVerification();
-            runner.update(connection, codeDelSQL);
-            var info = runner.query(connection, transactSQL,
-                    new BeanHandler<>(CardTransaction.class));
-            transferMoney(token, info.getTarget(), info.getSource(),
-                    info.getAmount_in_kopecks() / 100);
-            runner.update(connection, transactDelSQL);
-        }
+    public void clearingTablesAfterTests() {
+        cleaningAndAlignment();
     }
 }

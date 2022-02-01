@@ -7,6 +7,7 @@ import io.restassured.specification.RequestSpecification;
 import lombok.SneakyThrows;
 import lombok.Value;
 import org.apache.commons.dbutils.QueryRunner;
+import org.apache.commons.dbutils.handlers.BeanHandler;
 import org.apache.commons.dbutils.handlers.ScalarHandler;
 
 import java.sql.DriverManager;
@@ -14,6 +15,9 @@ import java.util.Arrays;
 import java.util.List;
 
 import static io.restassured.RestAssured.given;
+import static ru.netology.data.DataHelper.Auth.authUser;
+import static ru.netology.data.DataHelper.Cards.transferMoney;
+import static ru.netology.data.DataHelper.Verification.userVerification;
 
 public class DataHelper {
     private static final RequestSpecification requestSpec = new RequestSpecBuilder()
@@ -37,9 +41,32 @@ public class DataHelper {
                         user.getLogin(),        //собственно логин,
                         user.getPassword()))    //пароль.
                 .when()                         //"когда"
-                .post("/api/auth")     //На какой путь, относительно BaseUri отправляется запрос
+                .post("/api/auth")         //На какой путь, относительно BaseUri отправляется запрос
                 .then()                         //"тогда ожидаем"
-                .statusCode(200);           //Код 200, все хорошо
+                .statusCode(200);               //Код 200, все хорошо
+    }
+
+    @SneakyThrows
+    public static void cleaningAndAlignment() {
+        //Очистка таблиц и выравнивание баланса карт
+        var runner = new QueryRunner();
+        var codeDelSQL = "DELETE FROM auth_codes;";
+        var transactSQL = "SELECT * FROM card_transactions;";
+        var transactDelSQL = "DELETE FROM card_transactions;";
+
+        try (var connection = DriverManager.getConnection(
+                "jdbc:mysql://185.119.57.164:3306/base",
+                "adm", "9mRE")) {
+            runner.update(connection, codeDelSQL);
+            authUser();
+            var token = userVerification();
+            runner.update(connection, codeDelSQL);
+            var info = runner.query(connection, transactSQL,
+                    new BeanHandler<>(CardTransaction.class));
+            transferMoney(token, info.getTarget(), info.getSource(),
+                    info.getAmount_in_kopecks() / 100);
+            runner.update(connection, transactDelSQL);
+        }
     }
 
     public static class Auth {
